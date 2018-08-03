@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Select layer | CARTO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <!-- Include CARTO VL JS -->
+  <script src="https://libs.cartocdn.com/carto-vl/v0.6.2/carto-vl.min.js"></script>
+  <!-- Include Mapbox GL JS -->
+  <script src="https://libs.cartocdn.com/mapbox-gl/v0.45.0-carto1/mapbox-gl.js"></script>
+  <!-- Include Mapbox GL CSS -->
+  <link href="https://libs.cartocdn.com/mapbox-gl/v0.45.0-carto1/mapbox-gl.css" rel="stylesheet" />
+  <link href="https://carto.com/developers/carto-vl/examples/maps/style.css" rel="stylesheet">
+</head>
+<body>
+  <div id="map"></div>
+  <aside class="toolbox">
+    <div class="box">
+      <header>
+        <h1>Select a Grocery Chain</h1>
+      </header>
+      <section>
+        <p class="description open-sans">Choose the grocery stores to display</p>
+        <div id="controls">
+          <ul class="actions">
+            <li>
+              <input type="radio" name="source" onclick="setAllGrocery()" id="all" checked>
+              <label for="all">All Grocery Stores</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="set7Eleven()" id="7eleven">
+              <label for="7eleven">7-Eleven</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="setJewelOsco()" id="JewelOsco">
+              <label for="JewelOsco">Jewel-Osco</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="setMarianos()" id="marianos">
+              <label for="marianos">Mariano's Fresh Market</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="setPetes()" id="petes">
+              <label for="petes">Pete's Fresh Market</label>
+            </li>
+          </ul>
+          <div id="info"></div>
+        </div>
+      </section>
+      <footer class="js-footer"></footer>
+    </div>
+    <div class="box">
+      <header>
+        <h1>Select a Solution</h1>
+      </header>
+      <section>
+        <p class="description open-sans">Choose a solution to implement</p>
+        <div id="controls">
+          <ul class="actions">
+            <li>
+              <input type="radio" name="source" onclick="setOriginal()" id="original" checked>
+              <label for="original">Original Desert</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="setGroceryS()" id="grocstore">
+              <label for="grocstore">Place a grocery store</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="setGroceryC()" id="grochain">
+              <label for="grochain">Remove a Jewel-Osco</label>
+            </li>
+            <li>
+              <input type="radio" name="source" onclick="setTrans()" id="transoln">
+              <label for="transoln">Implement a transportation solution</label>
+            </li>
+          </ul>
+          <div id="info"></div>
+        </div>
+      </section>
+      <footer class="js-footer"></footer>
+    </div>
+  </aside>
+  <div id="loader">
+    <div class="CDB-LoaderIcon CDB-LoaderIcon--big">
+      <svg class="CDB-LoaderIcon-spinner" viewBox="0 0 50 50">
+        <circle class="CDB-LoaderIcon-path" cx="25" cy="25" r="20" fill="none"></circle>
+      </svg>
+    </div>
+  </div>
+  <script>
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      center: [-87.8, 41.85],
+      zoom: 7.8,
+      scrollZoom: true,
+      dragRotate: false,
+      touchZoomRotate: false,
+    });
+
+    // Define user
+    carto.setDefaultAuth({
+      user: 'theohj826',
+      apiKey: 'c0ecc82e5e8ee77e7cc1d2ee01155ec1434e4b26'
+    });
+
+    // Define sources
+    const allGrocerySource = new carto.source.SQL(`
+      SELECT *
+        FROM chicagoland_grocers3
+    `);
+    const selevenSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicagoland_grocers3
+        WHERE name = '7-Eleven'
+    `);
+    const joscoSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicagoland_grocers3
+        WHERE name = 'Jewel-Osco'
+    `);
+    const marianosSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicagoland_grocers3
+        WHERE name = 'Marianos Fresh Market'
+    `);
+    const petesSource = new carto.source.SQL(`
+      SELECT * 
+        FROM chicagoland_grocers3
+        WHERE name = 'Petes Fresh Market'
+    `);
+
+    // Define layer
+    const groceryViz = new carto.Viz(`
+      width:5
+      color: blue
+      strokeWidth: 0.5
+      strokeColor: white
+    `);
+    const groceryLayer = new carto.Layer('groceryLayer', allGrocerySource, groceryViz);
+      
+    // Block Group Layer
+    const originalSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicago_bc_acs_polygoneth2_desert
+    `);
+    const storeSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicago_bc_acs_desert_new2
+    `);
+    const chainSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicago_bg_acs_desert_wo_jo
+    `);
+    const tsolnSource = new carto.source.SQL(`
+      SELECT *
+        FROM chicago_bc_acs_desert_new3
+    `);
+    
+    const bgViz = new carto.Viz(`
+        color: ramp(globalQuantiles($desert_score, 10), sunset)
+        strokeWidth: 0.5
+    `);
+    const bgLayer = new carto.Layer('bgLayer', originalSource, bgViz);
+    
+    groceryLayer.addTo(map, 'watername_ocean');
+    bgLayer.addTo(map, 'groceryLayer');
+    groceryLayer.on('loaded', hideLoader);
+    
+    //grocery functions
+    function setAllGrocery() {
+      groceryLayer.update(allGrocerySource, groceryViz);
+    }
+    function set7Eleven() {
+      groceryLayer.update(selevenSource, groceryViz);
+    }
+    function setJewelOsco() {
+      groceryLayer.update(joscoSource, groceryViz);
+    }
+    function setMarianos() {
+      groceryLayer.update(marianosSource, groceryViz);
+    }
+    function setPetes() {
+      groceryLayer.update(petesSource, groceryViz);
+    }
+    
+    //desert functions
+    function setOriginal() {
+      bgLayer.update(originalSource, bgViz);
+    }
+    function setGroceryS() {
+      bgLayer.update(storeSource, bgViz);
+    }
+    function setGroceryC() {
+      bgLayer.update(chainSource, bgViz);
+    }
+    function setTrans() {
+      bgLayer.update(tsolnSource, bgViz);
+    }
+      
+    function hideLoader() {
+      document.getElementById('loader').style.opacity = '0';
+    }
+  </script>
+</body>
+</html>
